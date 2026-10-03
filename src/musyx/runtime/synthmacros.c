@@ -140,7 +140,15 @@ static u32 mcmdWait(SYNTH_VOICE* svoice, MSTEP* cstep) {
 }
 
 static u32 mcmdWaitMs(SYNTH_VOICE* svoice, MSTEP* cstep) {
+#if MUSY_TARGET == MUSY_TARGET_DOLPHIN
   *((u8*)cstep->para + 6) = 1;
+#else
+  /* Byte 6 of the step is the "milliseconds" flag only in big-endian order:
+   * bits 8-15 of para[1]. Poked as a byte on a little-endian host it lands in
+   * the wait length instead, so a 0xFFFF ("until key-off") wait became 65281
+   * ticks and every held note was cut once the clock passed that deadline. */
+  cstep->para[1] = (cstep->para[1] & ~0xFF00u) | 0x0100u;
+#endif
   return mcmdWait(svoice, cstep);
 }
 
